@@ -8,8 +8,6 @@ module LabProg2019.Maze
 
 open System.Collections
 
-let W = 31;
-let H = 31;
 //TODO documentare e risolutore automatico
 type maze (w:int, h:int) as this =
     let mutable m = Array.create h (BitArray(w)) 
@@ -19,7 +17,8 @@ type maze (w:int, h:int) as this =
 
     
     member public __.generate =
-        this.createMaze (H-2,W-2) //difficolta aumentata con questo trick
+        this.initMaze ()    
+        this.createMaze (w-2,h-2) //difficolta aumentata con questo trick
         solution <- this.solve (1,1) []
         ()
     
