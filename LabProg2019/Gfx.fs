@@ -313,7 +313,7 @@ type image (w, h, pixels : pixel[]) =
                 else 
                     pxArray.[counter] <- pixel.create ('#', Color.White, Color.White)
                     pxArray.[counter+1] <- pixel.create ('#', Color.White, Color.White)
-                    counter <- counter+2
+                    counter <- counter + 2
         new image (m.getW()*2,m.getH(),pxArray) //w*2 perche abbiamo 2 pixel per ogni cella del maze
 
 
