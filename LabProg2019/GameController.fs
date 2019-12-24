@@ -30,7 +30,7 @@ type mazeState = {
     mutable m : maze                //maze obj
     mutable offx : int              //offset of the starting point of the maze
     mutable offy : int
-    mutable solSprite : sprite
+    mutable mazeSprite : sprite
 }
 
 type state = {
@@ -48,14 +48,14 @@ let getDiff (indx:int) =
     d.[indx-1]
 
 ///it just prints the maze or the solution and returns the sprite
-let onlyPrintMaze (st:state) (pSol:bool) = st.engi.create_and_register_sprite (image.maze (st.mazestate.m) pSol, st.mazestate.offx,st.mazestate.offy,0)
+let onlyPrintMaze (st:state) (pSol:bool) (zIndex:int) = st.engi.create_and_register_sprite (image.maze (st.mazestate.m) pSol, st.mazestate.offx,st.mazestate.offy,zIndex)
 
 ///it initialize and print the maze and the other sprites needed
 let printMaze (st:state) = 
     st.mazestate.offx <- W - st.mazestate.m.getW () 
     st.mazestate.offy <- (H - st.mazestate.m.getH ())/2 
     
-    ignore(onlyPrintMaze st false)
+    st.mazestate.mazeSprite <- onlyPrintMaze st false 1
 
     st.mazestate.e.x <- float(2*(st.mazestate.m.getW()-2) + st.mazestate.offx)
     st.mazestate.e.y <- float(st.mazestate.m.getW()-2 + st.mazestate.offy)
@@ -86,10 +86,10 @@ let getMenuCoords (items:string[]) =
 let getMenuItems () = [|"--Select Game mode--";"--Press m to return here--";"# Classic #";"# Automated #";"# Work in progress #";"# Exit #"|]
 let getMenuDiffItems () = [|"--Select a difficulty level--";"# Easy #";"# Normal #";"# Hard #";"# Master #"|]
 
-let getMazeEndPointSprite () = new sprite (image.rectangle (2,1, pixel.create ('*',Color.Blue,Color.Blue)), (W-2)*2,H-2, 1)
-let getMazeStartPointSprite ()= new sprite (image.rectangle (2,1, pixel.create ('*',Color.Red,Color.Red)), 2, 1, 1)
+let getMazeEndPointSprite () = new sprite (image.rectangle (2,1, pixel.create ('*',Color.Blue,Color.Blue)), (W-2)*2,H-2, 2)
+let getMazeStartPointSprite ()= new sprite (image.rectangle (2,1, pixel.create ('*',Color.DarkYellow,Color.DarkYellow)), 2, 1, 2)
 
-let spawnPlayer (engi:engine) = engi.create_and_register_sprite (image.rectangle (2,1, pixel.create ('#',Color.Green,Color.Green)), 2, 1, 2) //creare il player 
+let spawnPlayer (engi:engine) = engi.create_and_register_sprite (image.rectangle (2,1, pixel.create ('#',Color.Green,Color.Green)), 2, 1, 3) //creare il player 
 let initState (engi:engine) =                                                                   //status initializer
     {
         engi = engi
@@ -112,7 +112,7 @@ let initState (engi:engine) =                                                   
             m = new maze (0,0)//TODO da cambiare con la scelta della difficolta dal menu
             offx = 0 //lo 0 non è realmente utilizato (solo di init)
             offy = 0
-            solSprite = new sprite(image.rectangle(0,0,pixel.empty),0,0,0) //value not used
+            mazeSprite = new sprite(image.rectangle(0,0,pixel.empty),0,0,0) //value not used
         }
 
         player = spawnPlayer (engi)
@@ -201,21 +201,26 @@ let printWinMessage (screen : wronly_raster) =
 
 let mazeHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) (x:float,y:float) = 
     let mutable newState = st
-    if st.menustate.selectedIndex = 2 then //classic
-        let px = (int(newState.player.x) - st.mazestate.offx)/2 + int(x)/2                          //calcolo della posizione effettiva del player nella matrice del maze
-        let py = int(newState.player.y + y) - st.mazestate.offy                                     //tenendo contro dell'eventuale offset dall'angolo
+    if newState.menustate.selectedIndex = 2 then //classic
+        let px = (int(newState.player.x) - newState.mazestate.offx)/2 + int(x)/2                          //calcolo della posizione effettiva del player nella matrice del maze
+        let py = int(newState.player.y + y) - newState.mazestate.offy                                     //tenendo contro dell'eventuale offset dall'angolo
         if newState.mazestate.m.isValid (py,px) then
             ignore <| newState.player.move_by (x, y)
             if newState.mazestate.e.x = newState.player.x && newState.mazestate.e.y = newState.player.y then
                 printWinMessage screen
                 newState <- returnToMenu newState
-    //else if st.menustate.selectedIndex = 3 then //automated
+    else if newState.menustate.selectedIndex = 3 then //automated
+        newState.player.z <- -1 //hide the player        
         //update the solution
-        //st.mazestate.m.one_step_solve()
+        let win = newState.mazestate.m.oneStepSolve () //returns if u win
         //delete the previous solution sprite
-        st.engi.deleteSprite (newState.mazestate.solSprite)       
+        newState.engi.deleteSprite (newState.mazestate.mazeSprite)       
         //and print the updated soloution
-        newState.mazestate.solSprite <- onlyPrintMaze st true
+        newState.mazestate.mazeSprite <- onlyPrintMaze newState true 1
+        if win then
+            newState.player.z <- 3 //show the player
+            printWinMessage screen
+            newState <- returnToMenu newState
         
     newState
 

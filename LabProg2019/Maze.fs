@@ -12,6 +12,7 @@ open System.Collections
 type maze (w:int, h:int) as this =
     let mutable m = Array.create h (BitArray(w)) 
     let mutable solution:(int*int*bool) list = []
+    let mutable s = new Generic.Stack<(int*int)> ();
 
     do this.initMaze ()
 
@@ -19,7 +20,8 @@ type maze (w:int, h:int) as this =
     member public __.generate =
         this.initMaze ()    
         this.createMaze (w-2,h-2) //difficolta aumentata con questo trick
-        solution <- this.solve (1,1) []
+        //solution <- this.solve (1,1) []
+        s.Push((1,1))
         ()
     
     member private __.initMaze () =
@@ -77,15 +79,15 @@ type maze (w:int, h:int) as this =
 
     //posizioni valide
     member private __.av (x,y) (pos:(int*int*bool) list) =
-        let mutable l:(int*int*bool) list= []
-        if __.isValid (y,x+1) && __.not_in (x+1,y) pos then l <- l@[(x+1,y,false)]//dx
-        if __.isValid (y+1,x) && __.not_in (x,y+1) pos then l <- l@[(x,y+1,false)]//giù
-        if __.isValid (y-1,x) && __.not_in (x,y-1) pos then l <- l@[(x,y-1,false)]//su
-        if __.isValid (y,x-1) && __.not_in (x-1,y) pos then l <- l@[(x-1,y,false)]//sx
+        let mutable l:(int*int) list= []
+        if __.isValid (y,x+1) && __.not_in (x+1,y) pos then l <- l@[(x+1,y)]//dx
+        if __.isValid (y+1,x) && __.not_in (x,y+1) pos then l <- l@[(x,y+1)]//giù
+        if __.isValid (y-1,x) && __.not_in (x,y-1) pos then l <- l@[(x,y-1)]//su
+        if __.isValid (y,x-1) && __.not_in (x-1,y) pos then l <- l@[(x-1,y)]//sx
         l
     
     //(x,y)-> posizione attuale, sol-> passi compiuti, pos-> posizioni passate
-    member private __.solve (x,y) (sol:(int*int*bool) list)=
+    (*member private __.solve (x,y) (sol:(int*int*bool) list)=
         //Log.msg "%A" (x,y)
         
         let mutable newSol = []
@@ -101,6 +103,44 @@ type maze (w:int, h:int) as this =
                     let temp = this.solve (x,y) (sol@[(x,y,false)])
                     if temp <> [] then newSol <- temp 
                 newSol
+    *)
+    member private  __.toStack (l:(int*int) list)=
+       let rec f l =
+               match l with 
+                   |[] -> ()
+                   |[x] -> s.Push x
+                   |x::xs -> s.Push x
+                             f xs
+       in f l
+
+    member private this.insertIntoSolutionAux (x:int,y:int) (sol:(int*int*bool) list)= 
+        match sol with
+        | [] -> [(x,y,false)]
+        | h::tail -> let (xh,yh,_) = h
+                     if xh = x && yh = y then
+                        (x,y,false) :: tail
+                     else
+                        h::(this.insertIntoSolutionAux (x,y) tail)
+
+    member private this.insertIntoSolution (x:int,y:int) = 
+        solution <- this.insertIntoSolutionAux (x,y) solution
+        ()
+
+    member public __.oneStepSolve ()=
+        if s.Count = 0 then false
+        else
+            let (x,y) = s.Pop ()
+            
+            if x = (w-2) && y = (h-2) then true     
+            else
+                let cord = this.av(x,y) solution
+                if cord = [] then
+                    this.insertIntoSolution(x,y)
+                else
+                    s.Push (x,y)
+                    this.toStack(cord)
+                    solution <- solution@[(x,y,true)]
+                false
 
     member public __.getSolution () = solution 
 
