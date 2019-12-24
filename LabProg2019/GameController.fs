@@ -147,7 +147,7 @@ let playerMovmentHandler (key : ConsoleKeyInfo) =
 
 let isPlayerOver (ms:menuState) (p:sprite) (sIndx:int) =                                                                    //returns the index of the selected menu item
     let mutable selectedIndex = -1
-    for i in sIndx .. (ms.items.Length-1) do                                               //ATTENZIONE ALL' INDICE DI PARTENZA
+    for i in sIndx .. (ms.items.Length-1) do                                               
         let (x,y) = ms.coords.[i]
         let width = ms.items.[i].Length
         if int(p.x)  >= x && int(p.x) < (x+width) && int(p.y) = y then selectedIndex <- i
