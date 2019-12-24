@@ -72,13 +72,13 @@ let printMenu (screen:wronly_raster) (ms:menuState) =
         let (x,y) = ms.coords.[i]
         screen.draw_text(ms.items.[i],x,y,Color.Black,Color.White)
   
-//TODO verifica se non si puo fare in un modo migliore
+
 let getMenuCoords (items:string[]) = 
     let pixelW = W*2
-    let mutable coords = [((pixelW/2)-(items.[0].Length/2),H/5)]
+    let mutable coords = []
     let yincr = int((float(H) * (3./5.)) / float(items.Length-1))
     let ystart = H/5
-    for i in 1 .. items.Length-1 do
+    for i in 0 .. items.Length-1 do
         coords <- coords@[((pixelW/2)-(items.[i].Length/2),ystart+(i*yincr))]
     List.toArray coords
 
@@ -109,7 +109,7 @@ let initState (engi:engine) =                                                   
             isVisible = false
             s = getMazeStartPointSprite ()
             e = getMazeEndPointSprite ()
-            m = new maze (0,0)//TODO da cambiare con la scelta della difficolta dal menu
+            m = new maze (0,0)
             offx = 0 //lo 0 non è realmente utilizato (solo di init)
             offy = 0
             mazeSprite = new sprite(image.rectangle(0,0,pixel.empty),0,0,0) //value not used
@@ -171,7 +171,7 @@ let diffChoserHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : stat
     movePlayerMenu (x, y) newState
 
     if key.KeyChar = 'e' && newState.menudiffstate.selectedIndex<>(-1) then //nel caso in cui il player è sopra una voce selezionabile del menu crea il maze
-            newState <- createAndPrintMaze newState //TODO bisogna stare attenti alla modalita che si è selezionato (refactor del maze handler e di createAndPrintMaze) 
+            newState <- createAndPrintMaze newState
     else    
         newState.menudiffstate.selectedIndex <- isPlayerOver newState.menudiffstate newState.player 1
         printMenu screen newState.menudiffstate

@@ -298,33 +298,7 @@ type image (w, h, pixels : pixel[]) =
 
     ///Creates a new image object with a maze drawn in it.The resulting image is 2w * h pixels in size, where w and h are the width and the height of the maze object.
     ///The funcion takes a maze object to draw and a bool indicating if we want to draw the solution of the maze
-    (*
-    static member maze (m:maze) (printSolution:bool) = 
-        let mz = m.getMaze () 
-        let dim = m.getW() * m.getH() * 2
-        let mutable pxArray = Array.create (dim) (pixel.filled Color.Black)
-        let mutable counter = 0
-        let sol = List.toArray(m.getSolution())
-        let mutable sc = 0
-
-        for i in 0 .. (m.getH()-1) do
-            for j in 0 .. (m.getW()-1) do
-                if printSolution then
-                    let (x,y,c) = m.isInSolution (j,i)
-                    if x<>(-1) || y<>(-1) then 
-                        let mutable color = Prelude.Color.Red
-                        if c then color <- Prelude.Color.DarkBlue
-                        pxArray.[counter] <- pixel.create ('#', color, color)
-                        pxArray.[counter+1] <- pixel.create ('#', color, color)
-                        sc <- sc + 1
-                else
-                    if (not(mz.[i].Item j)) then
-                        pxArray.[counter] <- pixel.create ('#', Color.White, Color.White)
-                        pxArray.[counter+1] <- pixel.create ('#', Color.White, Color.White)
-                counter <- counter + 2
-
-        new image (m.getW()*2,m.getH(),pxArray) //w*2 perche abbiamo 2 pixel per ogni cella del maze
-        *)
+    //TODO togliere la possibilita di printare anche la soluzione
     static member maze (m:maze) (printSolution:bool) = 
         let mz = m.getMaze () 
         let dim = m.getW() * m.getH() * 2
@@ -346,6 +320,7 @@ type image (w, h, pixels : pixel[]) =
                     pxArray.[counter+1] <- pixel.create ('#', Color.White, Color.White)
                     counter <- counter + 2
         new image (m.getW()*2,m.getH(),pxArray) //w*2 perche abbiamo 2 pixel per ogni cella del maze
+
 /// Subclass of image representing sprites. Sprites are images that can have a location and can be moved.
 /// Constructor parameters are the image, coordinates x, y and an integer z that is the order by which sprites are rendered, in ascending order (lower z means more behind, higher z means more in front).
 /// Coordinates x and y are stored as floats, allowing fine precision movement of sprites.
