@@ -11,7 +11,7 @@ open System.Collections
 //TODO documentare e risolutore automatico
 type maze (w:int, h:int) as this =
     let mutable m = Array.create h (BitArray(w)) 
-    let mutable solution:(int*int) list = []
+    let mutable solution:(int*int*bool) list = []
 
     do this.initMaze ()
 
@@ -71,24 +71,25 @@ type maze (w:int, h:int) as this =
     member private __.not_in e l=
         match l with
             |[]->true
-            |x::xs->if x=e then false
-                    else __.not_in e xs
+            |x::xs-> let (c,r,_) = x
+                     if (c,r)=e then false
+                     else __.not_in e xs
 
     //posizioni valide
-    member private __.av (x,y) pos=
-        let mutable l:(int*int) list= []
-        if __.isValid (y,x+1) && __.not_in (x+1,y) pos then l <- l@[(x+1,y)]//dx
-        if __.isValid (y+1,x) && __.not_in (x,y+1) pos then l <- l@[(x,y+1)]//giù
-        if __.isValid (y-1,x) && __.not_in (x,y-1) pos then l <- l@[(x,y-1)]//su
-        if __.isValid (y,x-1) && __.not_in (x-1,y) pos then l <- l@[(x-1,y)]//sx
+    member private __.av (x,y) (pos:(int*int*bool) list) =
+        let mutable l:(int*int*bool) list= []
+        if __.isValid (y,x+1) && __.not_in (x+1,y) pos then l <- l@[(x+1,y,false)]//dx
+        if __.isValid (y+1,x) && __.not_in (x,y+1) pos then l <- l@[(x,y+1,false)]//giù
+        if __.isValid (y-1,x) && __.not_in (x,y-1) pos then l <- l@[(x,y-1,false)]//su
+        if __.isValid (y,x-1) && __.not_in (x-1,y) pos then l <- l@[(x-1,y,false)]//sx
         l
     
     //(x,y)-> posizione attuale, sol-> passi compiuti, pos-> posizioni passate
-    member private __.solve (x,y) (sol:(int*int) list)=
+    member private __.solve (x,y) (sol:(int*int*bool) list)=
         //Log.msg "%A" (x,y)
         
         let mutable newSol = []
-        if x = (w-2) && y = (h-2) then sol@[(x,y)] 
+        if x = (w-2) && y = (h-2) then sol@[(x,y,false)] 
         else
             let coords = this.av (x,y) sol
             //Log.error "%A" coords
@@ -96,17 +97,18 @@ type maze (w:int, h:int) as this =
                 []            
             else
                 for i in 0 .. (coords.Length-1) do
-                    let temp = this.solve coords.[i] (sol@[(x,y)])
+                    let (x,y,_) = coords.[i]
+                    let temp = this.solve (x,y) (sol@[(x,y,false)])
                     if temp <> [] then newSol <- temp 
                 newSol
 
     member public __.getSolution () = solution 
 
-    member private __.isIn (x:int,y:int) (sol:(int*int) list) = 
+    member private __.isIn (x:int,y:int) (sol:(int*int*bool) list) = 
         match sol with
-        |[] -> false
-        |(hx,hy)::tail -> if hx = x && hy = y then true
-                          else this.isIn (x,y) tail 
+        |[] -> (-1,-1,false)
+        |(hx,hy,c)::tail -> if hx = x && hy = y then (hx,hy,c)
+                            else this.isIn (x,y) tail 
 
     member public __.isInSolution (x:int,y:int) = this.isIn (x,y) solution
         

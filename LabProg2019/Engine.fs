@@ -144,6 +144,15 @@ type engine (w : int, h : int, ?fps_cap : int, ?flip_queue) =
     
     member this.getSprites () = sprites
     member this.setSprites (s : sprite list) = sprites <- s
+
+    member private this.deleteSpriteAux (s:sprite) (sl:sprite list) = 
+        match sl with
+        |[] -> []
+        | x::xs -> if s <> x then x::(this.deleteSpriteAux s xs)
+                   else (this.deleteSpriteAux s xs)
+
+    member this.deleteSprite (s:sprite) = 
+        sprites <- this.deleteSpriteAux s sprites
     
 
 

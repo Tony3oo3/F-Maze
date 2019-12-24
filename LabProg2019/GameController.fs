@@ -6,16 +6,9 @@ open Gfx
 open Engine
 open Maze
 
-
 //Game Window size
 let W = 61;
 let H = 61;
-
-//maze width end height definition
-let dimEasy = (31,31)
-let dimNormal = (41,41)
-let dimExpert = (51,51)
-let dimMaster = (61,61)
 
 type CharInfo with
     static member wall = pixel.create ('#', Color.White, Color.White)
@@ -37,6 +30,7 @@ type mazeState = {
     mutable m : maze                //maze obj
     mutable offx : int              //offset of the starting point of the maze
     mutable offy : int
+    mutable solSprite : sprite
 }
 
 type state = {
@@ -53,11 +47,15 @@ let getDiff (indx:int) =
     let d = [|(31,31);(41,41);(51,51);(61,61)|]
     d.[indx-1]
 
+///it just prints the maze or the solution and returns the sprite
+let onlyPrintMaze (st:state) (pSol:bool) = st.engi.create_and_register_sprite (image.maze (st.mazestate.m) pSol, st.mazestate.offx,st.mazestate.offy,0)
+
+///it initialize and print the maze and the other sprites needed
 let printMaze (st:state) = 
     st.mazestate.offx <- W - st.mazestate.m.getW () 
     st.mazestate.offy <- (H - st.mazestate.m.getH ())/2 
     
-    ignore(st.engi.create_and_register_sprite (image.maze (st.mazestate.m) false, st.mazestate.offx,st.mazestate.offy,0))
+    ignore(onlyPrintMaze st false)
 
     st.mazestate.e.x <- float(2*(st.mazestate.m.getW()-2) + st.mazestate.offx)
     st.mazestate.e.y <- float(st.mazestate.m.getW()-2 + st.mazestate.offy)
@@ -111,9 +109,10 @@ let initState (engi:engine) =                                                   
             isVisible = false
             s = getMazeStartPointSprite ()
             e = getMazeEndPointSprite ()
-            m = new maze (dimEasy)//TODO da cambiare con la scelta della difficolta dal menu
+            m = new maze (0,0)//TODO da cambiare con la scelta della difficolta dal menu
             offx = 0 //lo 0 non è realmente utilizato (solo di init)
             offy = 0
+            solSprite = new sprite(image.rectangle(0,0,pixel.empty),0,0,0) //value not used
         }
 
         player = spawnPlayer (engi)
@@ -172,7 +171,7 @@ let diffChoserHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : stat
     movePlayerMenu (x, y) newState
 
     if key.KeyChar = 'e' && newState.menudiffstate.selectedIndex<>(-1) then //nel caso in cui il player è sopra una voce selezionabile del menu crea il maze
-        newState <- createAndPrintMaze newState //TODO bisogna stare attenti alla modalita che si è selezionato (refactor del maze handler e di createAndPrintMaze)
+            newState <- createAndPrintMaze newState //TODO bisogna stare attenti alla modalita che si è selezionato (refactor del maze handler e di createAndPrintMaze) 
     else    
         newState.menudiffstate.selectedIndex <- isPlayerOver newState.menudiffstate newState.player 1
         printMenu screen newState.menudiffstate
@@ -202,13 +201,22 @@ let printWinMessage (screen : wronly_raster) =
 
 let mazeHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) (x:float,y:float) = 
     let mutable newState = st
-    let px = (int(newState.player.x) - st.mazestate.offx)/2 + int(x)/2                          //calcolo della posizione effettiva del player nella matrice del maze
-    let py = int(newState.player.y + y) - st.mazestate.offy                                     //tenendo contro dell'eventuale offset dall'angolo
-    if newState.mazestate.m.isValid (py,px) then
-        ignore <| newState.player.move_by (x, y)
-        if newState.mazestate.e.x = newState.player.x && newState.mazestate.e.y = newState.player.y then
-            printWinMessage screen
-            newState <- returnToMenu newState
+    if st.menustate.selectedIndex = 2 then //classic
+        let px = (int(newState.player.x) - st.mazestate.offx)/2 + int(x)/2                          //calcolo della posizione effettiva del player nella matrice del maze
+        let py = int(newState.player.y + y) - st.mazestate.offy                                     //tenendo contro dell'eventuale offset dall'angolo
+        if newState.mazestate.m.isValid (py,px) then
+            ignore <| newState.player.move_by (x, y)
+            if newState.mazestate.e.x = newState.player.x && newState.mazestate.e.y = newState.player.y then
+                printWinMessage screen
+                newState <- returnToMenu newState
+    //else if st.menustate.selectedIndex = 3 then //automated
+        //update the solution
+        //st.mazestate.m.one_step_solve()
+        //delete the previous solution sprite
+        st.engi.deleteSprite (newState.mazestate.solSprite)       
+        //and print the updated soloution
+        newState.mazestate.solSprite <- onlyPrintMaze st true
+        
     newState
 
 let update (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) = 

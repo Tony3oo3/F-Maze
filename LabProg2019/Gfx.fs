@@ -303,19 +303,26 @@ type image (w, h, pixels : pixel[]) =
         let dim = m.getW() * m.getH() * 2
         let mutable pxArray = Array.create (dim) (pixel.filled Color.Black)
         let mutable counter = 0
+        let sol = List.toArray(m.getSolution())
+        let mutable sc = 0
+
         for i in 0 .. (m.getH()-1) do
             for j in 0 .. (m.getW()-1) do
-                if (mz.[i].Item j) then 
-                    if printSolution && m.isInSolution (j,i) then
-                        pxArray.[counter] <- pixel.create ('#', Color.Cyan, Color.Cyan)
-                        pxArray.[counter+1] <- pixel.create ('#', Color.Cyan, Color.Cyan)
-                    counter <- counter + 2
-                else 
-                    pxArray.[counter] <- pixel.create ('#', Color.White, Color.White)
-                    pxArray.[counter+1] <- pixel.create ('#', Color.White, Color.White)
-                    counter <- counter + 2
-        new image (m.getW()*2,m.getH(),pxArray) //w*2 perche abbiamo 2 pixel per ogni cella del maze
+                if printSolution then
+                    let (x,y,c) = m.isInSolution (j,i)
+                    if x<>(-1) || y<>(-1) then 
+                        let mutable color = Prelude.Color.Red
+                        if c then color <- Prelude.Color.DarkBlue
+                        pxArray.[counter] <- pixel.create ('#', color, color)
+                        pxArray.[counter+1] <- pixel.create ('#', color, color)
+                        sc <- sc + 1
+                else
+                    if (not(mz.[i].Item j)) then
+                        pxArray.[counter] <- pixel.create ('#', Color.White, Color.White)
+                        pxArray.[counter+1] <- pixel.create ('#', Color.White, Color.White)
+                counter <- counter + 2
 
+        new image (m.getW()*2,m.getH(),pxArray) //w*2 perche abbiamo 2 pixel per ogni cella del maze
 
 /// Subclass of image representing sprites. Sprites are images that can have a location and can be moved.
 /// Constructor parameters are the image, coordinates x, y and an integer z that is the order by which sprites are rendered, in ascending order (lower z means more behind, higher z means more in front).
