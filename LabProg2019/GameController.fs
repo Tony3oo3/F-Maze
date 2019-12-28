@@ -5,6 +5,7 @@ open External
 open Gfx
 open Engine
 open Maze
+open System.Diagnostics
 
 //Game Window size
 let W = 61;
@@ -39,12 +40,15 @@ type state = {
     mutable menudiffstate : menuState
     mutable mazestate : mazeState 
     mutable player : sprite
+    mutable time : TimeSpan
+    mutable timer : Stopwatch
+    mutable changePlayer : bool     //flag used in order to wait in pvp when p1 won before p2 starts
     mutable terminate : bool 
 }
 
 ///returns a pair rapresenting the maze dimensions given the index. Index is from 0 to 3 (0 -> easy / 3 -> master)
 let getDiff (indx:int) = 
-    let d = [|(31,31);(41,41);(51,51);(61,61)|]
+    let d = [|(11,11);(41,41);(51,51);(61,61)|]
     d.[indx-1]
 
 ///it just prints the maze or the solution and returns the sprite
@@ -83,7 +87,7 @@ let getMenuCoords (items:string[]) =
     List.toArray coords
 
 //TODO si potrebbe separare le voci del menu non selezionabili e quelle selezionabili 
-let getMenuItems () = [|"--Select Game mode--";"--Press m to return here--";"# Classic #";"# Automated #";"# Work in progress #";"# Exit #"|]
+let getMenuItems () = [|"--Select Game mode--";"--Press m to return here--";"# Classic #";"# Automated #";"# PvP #";"# Exit #"|]
 let getMenuDiffItems () = [|"--Select a difficulty level--";"# Easy #";"# Normal #";"# Hard #";"# Master #"|]
 
 let getMazeEndPointSprite () = new sprite (image.rectangle (2,1, pixel.create ('*',Color.Blue,Color.Blue)), (W-2)*2,H-2, 2)
@@ -114,8 +118,10 @@ let initState (engi:engine) =                                                   
             offy = 0
             mazeSprite = new sprite(image.rectangle(0,0,pixel.empty),0,0,0) //value not used
         }
-
         player = spawnPlayer (engi)
+        time = new TimeSpan (int64(0))
+        timer = null
+        changePlayer = false
         terminate = false
     }
 
@@ -127,6 +133,9 @@ let returnToMenu (st:state) =
     st.menudiffstate.selectedIndex <- -1
     st.engi.setSprites []                                                                       //delete all the sprites
     st.player <- spawnPlayer st.engi                                                            //respawn player
+    st.changePlayer <- false
+    st.time <- new TimeSpan (int64(0))
+    st.timer <- null
     st
 
 let createAndPrintMaze (st:state) = 
@@ -199,20 +208,46 @@ let printWinMessage (screen : wronly_raster) =
     let retToMen = "Press a key to return to the menu"
     screen.draw_text(retToMen , (screen.width/2)-(retToMen.Length/2),screen.height/2 + 2,Color.Black,Color.White)
 
-let mazeHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) (x:float,y:float) = 
+let printPvPWinM (screen : wronly_raster) (t1:TimeSpan) (t2:TimeSpan)= 
+    let mutable winMessage = "Player 1 WON!"
+    if t2<t1 then
+        winMessage <- "Player 2 WON!"                
+    screen.draw_text(winMessage , (screen.width/2)-(winMessage.Length/2),screen.height/2,Color.Black,Color.White)
+
+    let p1 = "Player 1 time : " + string(t1.Minutes) + " minutes and " + string(t1.Seconds) + " seconds"
+    screen.draw_text(p1 , (screen.width/2)-(p1.Length/2),screen.height/2 + 2,Color.Black,Color.White)
+
+    let p2 = "Player 2 time : " + string(t2.Minutes) + " minutes and " + string(t2.Seconds) + " seconds"
+    screen.draw_text(p2 , (screen.width/2)-(p2.Length/2),screen.height/2 + 4,Color.Black,Color.White)
+
+    let retToMen = "Press a key to return to the menu"
+    screen.draw_text(retToMen , (screen.width/2)-(retToMen.Length/2),screen.height/2 + 6,Color.Black,Color.White)
+
+let onMazePlayerHandler (screen : wronly_raster) (st : state) (x:float,y:float) = //returns if u won and the changed state
     let mutable newState = st
-    if newState.menustate.selectedIndex = 2 then //classic
-        let px = (int(newState.player.x) - newState.mazestate.offx)/2 + int(x)/2                          //calcolo della posizione effettiva del player nella matrice del maze
-        let py = int(newState.player.y + y) - newState.mazestate.offy                                     //tenendo contro dell'eventuale offset dall'angolo
-        if newState.mazestate.m.isValid (py,px) then
-            ignore <| newState.player.move_by (x, y)
-            if newState.mazestate.e.x = newState.player.x && newState.mazestate.e.y = newState.player.y then
-                printWinMessage screen
-                newState <- returnToMenu newState
-    else if newState.menustate.selectedIndex = 3 then //automated
+    let mutable win = false
+    let px = (int(newState.player.x) - newState.mazestate.offx)/2 + int(x)/2                          //calcolo della posizione effettiva del player nella matrice del maze
+    let py = int(newState.player.y + y) - newState.mazestate.offy                                     //tenendo contro dell'eventuale offset dall'angolo
+    if newState.mazestate.m.isValid (py,px) then
+        ignore <| newState.player.move_by (x, y)
+        if newState.mazestate.e.x = newState.player.x && newState.mazestate.e.y = newState.player.y then
+            win <- true
+    (newState,win)
+
+let mazeHandler (screen : wronly_raster) (st : state) (x:float,y:float) = 
+    let mutable newState = st
+    if newState.menustate.selectedIndex = 2 then                                        //Classic
+        let (state,win) = onMazePlayerHandler screen st (x,y)
+        newState <- state
+        if win then
+            printWinMessage screen
+            newState <- returnToMenu newState
+
+
+    else if newState.menustate.selectedIndex = 3 then                                   //Automated
         newState.player.z <- -1 //hide the player        
         //update the solution
-        let win = newState.mazestate.m.oneStepSolve () //returns if u win
+        let win = newState.mazestate.m.oneStepSolve () //returns if u win or not
         //delete the previous solution sprite
         newState.engi.deleteSprite (newState.mazestate.mazeSprite)       
         //and print the updated soloution
@@ -221,7 +256,33 @@ let mazeHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) (x:
             newState.player.z <- 3 //show the player
             printWinMessage screen
             newState <- returnToMenu newState
-        
+
+
+    else if newState.menustate.selectedIndex = 4 then                                   //PvP
+        if newState.changePlayer then   //controllo che indica se siamo nella schermata di cambio player
+            newState.changePlayer <- false  //setta a false il cambio del player 
+            newState <- createAndPrintMaze newState //crea e printa il maze nuovo
+            newState.engi.register_sprite newState.player //spawna il player
+        else        //altrimenti se siamo in una situazione normale
+            //start timer
+            if newState.timer = null then
+                newState.timer <- Stopwatch.StartNew()
+            let (state,win) = onMazePlayerHandler screen st (x,y)   //gestisci il movimento del player
+            newState <- state   //aggiorna lo stato
+            if win then //se abbiamo winto
+                newState.timer.Stop () //ferma il tempo
+                newState.engi.setSprites [] //elimina il maze precendente
+                if newState.time.Ticks = int64(0) then  //se il tempo è a 0 (valore di default)
+                    newState.time <- newState.timer.Elapsed //setta il nuovo tempo del player 1
+                    let holdMessage = "Change player"
+                    screen.draw_text(holdMessage , (screen.width/2)-(holdMessage.Length/2),screen.height/2,Color.Black,Color.White) //printa il messaggio di cambio player
+                    newState.changePlayer <- true   //setta il flag di cambio player a true
+                else //altrimenti
+                    printPvPWinM screen newState.time newState.timer.Elapsed    //printa il messaggio finale (con i tempi e il vincitore)
+                    newState.time <- new TimeSpan (int64(0)) //reset del tempo
+                    newState <- returnToMenu newState   //ritorna al menu
+                newState.timer <- null //elimina il timer usato
+
     newState
 
 let update (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) = 
@@ -238,7 +299,7 @@ let update (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) =
         newState <- diffChoserHandler key screen newState (x,y)
 
     if newState.mazestate.isVisible then
-        newState <- mazeHandler key screen newState (x,y)                                       //la funzione mazeHandler ritorna lo stato modificato
+        newState <- mazeHandler screen newState (x,y)                                       //la funzione mazeHandler ritorna lo stato modificato
 
     newState, st.terminate
 
