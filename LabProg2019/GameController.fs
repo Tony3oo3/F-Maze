@@ -1,4 +1,10 @@
-﻿module LabProg2019.GameController
+﻿(*
+* LabProg2019 - Progetto di Programmazione a.a. 2019-20
+* GameController.fs: controller of the game
+* (C) 2019 Alvise Spano' / Davide Gardenal / Christian Curtolo / Leonardo Tamai @ Universita' Ca' Foscari di Venezia
+*)
+
+module LabProg2019.GameController
 
 open System
 open External
@@ -16,45 +22,47 @@ type CharInfo with
     static member internal path = pixel.filled Color.Black
     member this.isWall = this = pixel.wall
 
-
+///Struct used to save the state of the menu
 type menuState = {
-    mutable isVisible : bool
-    items : string []
-    coords : (int*int) []
-    mutable selectedIndex : int
+    mutable isVisible : bool            //flag set if the menu has to be desplayed
+    items : string []                   //array containg the string(items) of the menu
+    coords : (int*int) []               //array of the coordinates of the single items of the menu
+    mutable selectedIndex : int         //int rapresenting the selected index of the menu. (-1) = no item selected 
 }
 
+///Struct used to save the state of the maze
 type mazeState = {
-    mutable isVisible : bool        //visible flag (needed for rendering)
-    mutable s : sprite              //start point
-    mutable e : sprite              //end point
-    mutable m : maze                //maze obj
-    mutable offx : int              //offset of the starting point of the maze
-    mutable offy : int
-    mutable mazeSprite : sprite
+    mutable isVisible : bool            //visible flag (needed for rendering)
+    mutable s : sprite                  //start point
+    mutable e : sprite                  //end point
+    mutable m : maze                    //maze obj
+    mutable offx : int                  //offset of the starting point of the maze
+    mutable offy : int                  
+    mutable mazeSprite : sprite         //sprite of the maze
 }
 
+///Struct used to save the state of the game
 type state = {
-    engi : engine
-    mutable menustate : menuState
-    mutable menudiffstate : menuState
-    mutable mazestate : mazeState 
-    mutable player : sprite
-    mutable time : TimeSpan
-    mutable timer : Stopwatch
-    mutable changePlayer : bool     //flag used in order to wait in pvp when p1 won before p2 starts
-    mutable terminate : bool 
+    engi : engine                       //engine object. Used to print the sprites
+    mutable menustate : menuState       //main menu state struct
+    mutable menudiffstate : menuState   //diffulty chooser menu struct
+    mutable mazestate : mazeState       //maze state struct
+    mutable player : sprite             //sprite of the player
+    mutable time : TimeSpan             //time object used in pvp mode to save the time of the first player
+    mutable timer : Stopwatch           //object used to measur time of the two players in pvp
+    mutable changePlayer : bool         //flag used in order to wait in pvp when p1 won before p2 starts
+    mutable terminate : bool            //True = the game is over, quit. False = the game is not over, continue.
 }
 
-///returns a pair rapresenting the maze dimensions given the index. Index is from 0 to 3 (0 -> easy / 3 -> master)
+///Returns a pair rapresenting the maze dimensions given the index. Index is from 0 to 3 (0 -> easy / 3 -> master)
 let getDiff (indx:int) = 
-    let d = [|(11,11);(41,41);(51,51);(61,61)|]
+    let d = [|(31,31);(41,41);(51,51);(61,61)|]
     d.[indx-1]
 
-///it just prints the maze or the solution and returns the sprite
+///It just prints the maze or the solution and returns the sprite
 let onlyPrintMaze (st:state) (pSol:bool) (zIndex:int) = st.engi.create_and_register_sprite (image.maze (st.mazestate.m) pSol, st.mazestate.offx,st.mazestate.offy,zIndex)
 
-///it initialize and print the maze and the other sprites needed
+///Given a state, it set all the parameters in orther to print the maze. It returns the updated state
 let printMaze (st:state) = 
     st.mazestate.offx <- W - st.mazestate.m.getW () 
     st.mazestate.offy <- (H - st.mazestate.m.getH ())/2 
@@ -70,13 +78,13 @@ let printMaze (st:state) =
     st.player.x <- 2. + float(st.mazestate.offx)
     st.player.y <- 1. + float(st.mazestate.offy)
     st
-
+///Print the menu items depending on the current menu state. A wronly_raster object is needed in orther to print
 let printMenu (screen:wronly_raster) (ms:menuState) = 
     for i in 0 .. (ms.items.Length-1) do
         let (x,y) = ms.coords.[i]
         screen.draw_text(ms.items.[i],x,y,Color.Black,Color.White)
   
-
+///Given a list of item to display in the menu it calculates their coordinates
 let getMenuCoords (items:string[]) = 
     let pixelW = W*2
     let mutable coords = []
@@ -86,14 +94,18 @@ let getMenuCoords (items:string[]) =
         coords <- coords@[((pixelW/2)-(items.[i].Length/2),ystart+(i*yincr))]
     List.toArray coords
 
-//TODO si potrebbe separare le voci del menu non selezionabili e quelle selezionabili 
+///Returns the main menu items
 let getMenuItems () = [|"--Select Game mode--";"--Press m to return here--";"# Classic #";"# Automated #";"# PvP #";"# Exit #"|]
+///Returns the items of the difficulty choice menu
 let getMenuDiffItems () = [|"--Select a difficulty level--";"# Easy #";"# Normal #";"# Hard #";"# Master #"|]
-
+///Returns the sprite of the end of the maze
 let getMazeEndPointSprite () = new sprite (image.rectangle (2,1, pixel.create ('*',Color.Blue,Color.Blue)), (W-2)*2,H-2, 2)
+///Returns the sprite of the start of the maze
 let getMazeStartPointSprite ()= new sprite (image.rectangle (2,1, pixel.create ('*',Color.DarkYellow,Color.DarkYellow)), 2, 1, 2)
-
+///Creates and registers the sprite of the player
 let spawnPlayer (engi:engine) = engi.create_and_register_sprite (image.rectangle (2,1, pixel.create ('#',Color.Green,Color.Green)), 2, 1, 3) //creare il player 
+
+///Intitialize the game status. Engine object required
 let initState (engi:engine) =                                                                   //status initializer
     {
         engi = engi
@@ -124,7 +136,7 @@ let initState (engi:engine) =                                                   
         changePlayer = false
         terminate = false
     }
-
+///Changes the values of the given state in order to return to the main menu. Returns the modified state 
 let returnToMenu (st:state) =
     st.mazestate.isVisible <- false
     st.menudiffstate.isVisible <- false
@@ -138,6 +150,7 @@ let returnToMenu (st:state) =
     st.timer <- null
     st
 
+///Creates and generates a new maze and prints it. It returns the updated state 
 let createAndPrintMaze (st:state) = 
     st.mazestate.m <- new maze (getDiff (st.menudiffstate.selectedIndex))
     st.mazestate.m.generate
@@ -145,6 +158,7 @@ let createAndPrintMaze (st:state) =
     st.menudiffstate.isVisible <- false
     printMaze(st)
 
+///Based on the key of the keyboard the player pressed, returns a pair rapresenting the direction used to move the player. Requires a ConsoleKeyInfo object to get the input
 let playerMovmentHandler (key : ConsoleKeyInfo) =
         match key.KeyChar with 
         | 'w' -> 0., -1.
@@ -153,7 +167,8 @@ let playerMovmentHandler (key : ConsoleKeyInfo) =
         | 'd' -> 2., 0.
         | _   -> 0., 0.
 
-let isPlayerOver (ms:menuState) (p:sprite) (sIndx:int) =                                                                    //returns the index of the selected menu item
+///Returns the index of the menu item where the player is on. Requires the menustate of the current menu, the player sprite, the first valid index of the menu item list. 
+let isPlayerOver (ms:menuState) (p:sprite) (sIndx:int) =                                                                    
     let mutable selectedIndex = -1
     for i in sIndx .. (ms.items.Length-1) do                                               
         let (x,y) = ms.coords.[i]
@@ -161,6 +176,7 @@ let isPlayerOver (ms:menuState) (p:sprite) (sIndx:int) =                        
         if int(p.x)  >= x && int(p.x) < (x+width) && int(p.y) = y then selectedIndex <- i
     selectedIndex
 
+///Move the player position and if he goes beyond the edges he will be teleported to the other side of the maze
 let movePlayerMenu (dx:float,dy:float) (st: state)=
     let mutable xf = dx
     let mutable yf= dy
@@ -174,6 +190,7 @@ let movePlayerMenu (dx:float,dy:float) (st: state)=
     
     st.player.move_by (xf, yf)
 
+///Handler of the difficulty menu. Moves the player by calling movePlayerMenu. Calls createAndPrintMaze if the player has selected a difficulty. Returns the updated state
 let diffChoserHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) (x:float,y:float) = 
     let mutable newState = st
     
@@ -186,6 +203,7 @@ let diffChoserHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : stat
         printMenu screen newState.menudiffstate
     newState
 
+///Manage the movements of the player on the main menu and when the player press 'e' only if his sprite is over the a selectable voice of the menu, selects the game mode and changes the menu to the diffulty chooser
 let menuHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) (x:float,y:float) = 
     let mutable newState = st
 
@@ -202,12 +220,14 @@ let menuHandler (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) (x:
         printMenu screen newState.menustate                                                     //prints the menu
     newState//ritorna lo stato modificato
 
+///Print the win message once a maze level is completed
 let printWinMessage (screen : wronly_raster) = 
     let winMessage = "YOU WON!"
     screen.draw_text(winMessage , (screen.width/2)-(winMessage.Length/2),screen.height/2,Color.Black,Color.White)
     let retToMen = "Press a key to return to the menu"
     screen.draw_text(retToMen , (screen.width/2)-(retToMen.Length/2),screen.height/2 + 2,Color.Black,Color.White)
 
+///Print the win message of a PvP match, and the relative player times
 let printPvPWinM (screen : wronly_raster) (t1:TimeSpan) (t2:TimeSpan)= 
     let mutable winMessage = "Player 1 WON!"
     if t2<t1 then
@@ -223,7 +243,8 @@ let printPvPWinM (screen : wronly_raster) (t1:TimeSpan) (t2:TimeSpan)=
     let retToMen = "Press a key to return to the menu"
     screen.draw_text(retToMen , (screen.width/2)-(retToMen.Length/2),screen.height/2 + 6,Color.Black,Color.White)
 
-let onMazePlayerHandler (screen : wronly_raster) (st : state) (x:float,y:float) = //returns if u won and the changed state
+///Handler for the maze and the player interactions. (x,y) is the player direction. Returns a pair state*bool rapresenting the updated state and a flag indicating if the player won
+let onMazePlayerHandler (screen : wronly_raster) (st : state) (x:float,y:float) = //returns if you won and the changed state
     let mutable newState = st
     let mutable win = false
     let px = (int(newState.player.x) - newState.mazestate.offx)/2 + int(x)/2                          //calcolo della posizione effettiva del player nella matrice del maze
@@ -234,6 +255,7 @@ let onMazePlayerHandler (screen : wronly_raster) (st : state) (x:float,y:float) 
             win <- true
     (newState,win)
 
+///Handler used to change the behavior of the game based on the selected game mode.
 let mazeHandler (screen : wronly_raster) (st : state) (x:float,y:float) = 
     let mutable newState = st
     if newState.menustate.selectedIndex = 2 then                                        //Classic
@@ -284,7 +306,7 @@ let mazeHandler (screen : wronly_raster) (st : state) (x:float,y:float) =
                 newState.timer <- null //elimina il timer usato
 
     newState
-
+///Main funcion called by the engine. Calls the corret handler base on the state visible flags
 let update (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) = 
     let mutable newState = st                                                                   //new state to use
   
@@ -301,8 +323,10 @@ let update (key : ConsoleKeyInfo) (screen : wronly_raster) (st : state) =
     if newState.mazestate.isVisible then
         newState <- mazeHandler screen newState (x,y)                                       //la funzione mazeHandler ritorna lo stato modificato
 
+
     newState, st.terminate
 
+///Create the engine and calls the main loop
 let main () = 
     let engi = new engine (W*2,H)
     engi.show_fps <- false

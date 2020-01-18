@@ -29,7 +29,6 @@ let main_game () =
     client.Connect ()
     Log <- new remote_logger (client)
 
-    // TODO: call your own main here
     GameController.main ()
     0
 

@@ -298,7 +298,6 @@ type image (w, h, pixels : pixel[]) =
 
     ///Creates a new image object with a maze drawn in it.The resulting image is 2w * h pixels in size, where w and h are the width and the height of the maze object.
     ///The funcion takes a maze object to draw and a bool indicating if we want to draw the solution of the maze
-    //TODO togliere la possibilita di printare anche la soluzione
     static member maze (m:maze) (printSolution:bool) = 
         let mz = m.getMaze () 
         let dim = m.getW() * m.getH() * 2

@@ -142,16 +142,20 @@ type engine (w : int, h : int, ?fps_cap : int, ?flip_queue) =
         timer.Elapsed.RemoveHandler handler
         Log.msg "exiting engine loop."
     
+    ///Getter of the sprites list
     member this.getSprites () = sprites
+    
+    ///Setter of the sprites list
     member this.setSprites (s : sprite list) = sprites <- s
 
-
+    ///Auxiliary method used the delete a prite from the sprite list
     member private this.deleteSpriteAux (s:sprite) (sl:sprite list) = 
         match sl with
         |[] -> []
         | x::xs -> if s <> x then x::(this.deleteSpriteAux s xs)
                    else (this.deleteSpriteAux s xs)
 
+    ///Method that delete the given prite from the state list
     member this.deleteSprite (s:sprite) = 
         sprites <- this.deleteSpriteAux s sprites
     
